@@ -11,22 +11,18 @@ import kotlin.coroutines.*
 
 fun main() {
 
-    runSuspend {
-        log(1)
-        delay(5000)
-    }
-    log(2)
-
     /**
      * 协程启动的方式一
      */
     suspend {
-    }.createCoroutine(object : Continuation<Unit> {
+        1
+    }.createCoroutine(object : Continuation<Int> {
 
         override val context: CoroutineContext
             get() = EmptyCoroutineContext
 
-        override fun resumeWith(result: Result<Unit>) {
+        override fun resumeWith(result: Result<Int>) {
+            log("result --> ${result.getOrThrow()}")
         }
     }).resume(Unit)
 
@@ -35,46 +31,44 @@ fun main() {
      */
     suspend {
     }.startCoroutine(object : Continuation<Unit> {
+
         override val context: CoroutineContext
             get() = EmptyCoroutineContext
 
         override fun resumeWith(result: Result<Unit>) {
         }
     })
+
+    callLaunchCoroutine()
 }
 
-fun runSuspend(block: suspend () -> Unit) {
-    val runSuspend = RunSuspend()
-    block.createCoroutine(runSuspend).resume(Unit)
-    runSuspend.await()
-}
-
-class RunSuspend : Continuation<Unit> {
-
-    private val lock: Object = Object()
-
-    private var result: Result<Unit>? = null
-
-    override val context: CoroutineContext
-        get() = EmptyCoroutineContext
-
-    override fun resumeWith(result: Result<Unit>) = synchronized(lock) {
-        this.result = result
-
-        log("执行完毕.....")
-
-        lock.notifyAll()
+fun callLaunchCoroutine() {
+    launchCoroutine(ProducerScope<Int>()){
+        log("In Coroutine...")
+        produce(1024)
+        delay(2000)
+        produce(1024)
     }
+}
 
-    fun await(): Unit = synchronized(lock) {
-        while (true) {
-            when (val result = this.result) {
-                null -> lock.wait()
-                else -> {
-                    result.getOrThrow() // throw up failure
-                    return
-                }
-            }
+class ProducerScope<T> {
+    suspend fun produce(value: T) {
+    }
+}
+
+/**
+ * 创建协程接收一个 Receiver, 它的作用可以为协程体提供一个作用域
+ * 即是在协程体内我们可以直接使用作用域内提供的函数或者状态等.
+ */
+fun <R, T> launchCoroutine(receiver: R, block: suspend R.() -> T) {
+    block.startCoroutine(receiver, object : Continuation<T> {
+        override val context: CoroutineContext
+            get() = EmptyCoroutineContext
+
+        override fun resumeWith(result: Result<T>) {
+            log("Coroutine End: ${result.getOrNull()}")
         }
-    }
+    })
 }
+
+
