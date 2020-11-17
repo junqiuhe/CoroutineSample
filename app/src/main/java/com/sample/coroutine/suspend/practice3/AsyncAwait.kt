@@ -2,6 +2,7 @@ package com.sample.coroutine.suspend.practice3
 
 import com.sample.coroutine.User
 import com.sample.coroutine.utils.log
+import java.lang.RuntimeException
 import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 import kotlin.coroutines.*
@@ -20,15 +21,14 @@ internal class AsyncHandler<T>(
         start.resume(Unit)
     }
 
-    override suspend fun await(block: () -> T): T = suspendCoroutineUninterceptedOrReturn {
+    override suspend fun await(block: () -> T): T = suspendCoroutine {
         thread {
             try {
-                it.resume(block())
+                it.resume(block.invoke())
             } catch (e: Exception) {
                 it.resumeWithException(e)
             }
         }
-        COROUTINE_SUSPENDED
     }
 
     override val context: CoroutineContext
@@ -58,10 +58,15 @@ fun main() {
 //    Looper.loop()
 
     async<User> {
-        val user = await {
-            sleep(4000)
-            User("Zhang", "San")
+        try {
+            val user = await {
+                sleep(4000)
+                User("Zhang", "San")
+                throw RuntimeException("hahahahah....")
+            }
+            log(user)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        log(user)
     }
 }
