@@ -1,8 +1,10 @@
-package com.sample.coroutine
+package com.sample.coroutine.dispatch
 
+import com.sample.coroutine.User
 import com.sample.coroutine.utils.log
 import kotlinx.coroutines.*
 import java.lang.Thread.sleep
+import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -10,32 +12,26 @@ import kotlin.coroutines.suspendCoroutine
  * 调度器是基于拦截器实现的
  */
 suspend fun main() {
-
-    val user = GlobalScope.async(context = Dispatchers.Default) {
+    GlobalScope.launch(context = DispatchHandler()) {
         log(1)
 
         delay(1000)
         log(2)
 
         val user = getUser()
-        log(3)
+        log("user --> $user")
 
-        user
-
-    }.await()
-
-    log("4, result: $user")
+    }.join()
 }
 
 /**
  * suspendCoroutine 并不是启动协程，而是获取当前协程的 Continuation 实例.
  */
-suspend fun getUser(): User = suspendCoroutine {
-    val user = getUserFromApi()
-    it.resume(user)
-}
-
-private fun getUserFromApi(): User {
-    sleep(2000)
-    return User("zhang", "san")
+suspend fun getUser(): User = suspendCoroutine { continuation ->
+    thread {
+        sleep(5000)
+        User("li", "si").let {
+            continuation.resume(it)
+        }
+    }
 }
